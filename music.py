@@ -1,20 +1,22 @@
 import sys
+from io import BytesIO
 from midiutil.MidiFile import MIDIFile
-
-
+import pygame.mixer
+from time import sleep
+import random
+from datetime import datetime
 time = 0
 volume = 100
 tempo = 120
 
 
-def setInstruments(instr_list) -> int:
+def setInstruments(instr_list) -> None:
     '''
     A function to set channels for each instrument
     '''
-    print(instr_list)
-    numInstruments = len(instr_list) - 1
+    global numInstruments,track
+    numInstruments = len(instr_list)
     if numInstruments <= 9:
-        global track
         track = MIDIFile(1)
         track.addTempo(track, time, tempo)
         #Changing channels and assigning an instrument
@@ -28,26 +30,45 @@ def musicEngine(args) -> None:
     A function to generate music from given values of pitch, time, duration of the instrument
     Pitch values are taken from "https://www.midi.org/specifications-old/item/gm-level-1-sound-set"
     '''
-    print("-----------------------------------------------")
+    memFile = BytesIO()
     for line in args:
-        print(line)
-        channel = line[0]
-        pitch = line[1]
+        channel = int(line[0])
+        pitch = int(line[1])
         time = line[2]
         duration = line[3]
-        print(channel,pitch,time,duration)
         track.addNote(0, channel, pitch, time, duration, volume)
-    with open("output.mid", 'wb') as outFile:
-        track.writeFile(outFile)
+    track.writeFile(memFile)
+    pygame.init()
+    pygame.mixer.init()
+    memFile.seek(0)
+    pygame.mixer.music.load(memFile)
+    pygame.mixer.music.play()
+    while pygame.mixer.music.get_busy():
+        sleep(1)
 
 def musicGenerator(*args):
     setInstruments(args[0])
     musicEngine(args[1])
 
+# A generator to generate random note
+def random_note() -> list:
+    channel = random.randint(0, numInstruments)
+    pitch = random.randint(36, 96)
+    time = random.randint(0, 5)
+    duration = random.randint(1, 3)
+    return [channel,pitch,time,duration]
 
-# a = [1, 27, 41]
-# b = [[ 1,         54   ,       6.41902587 , 0.33824194],
-#  [ 0  ,       62   ,       1.53410186 , 1.56861003],
-#  [ 0  ,       55  ,        4.79133071,  2.46433114],
-#  [ 0     ,    55     ,     3.45191166 , 0.35755675]]
-# musicGenerator(a,b)
+#To save best tracks
+def save_track(trck,instr_array):
+    setInstruments(instr_array)
+    for line in trck:
+        channel = int(line[0])
+        pitch = int(line[1])
+        time = line[2]
+        duration = line[3]
+        track.addNote(0, channel, pitch, time, duration, volume)
+    dt = datetime.now()
+    filename = "track" + str(dt.day) + str(dt.hour) + str(dt.minute) + str(dt.second) + ".mid"
+    print(filename,"saved")
+    with open(filename,"wb") as outfile:
+        track.writeFile(outfile)

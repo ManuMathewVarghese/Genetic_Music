@@ -1,12 +1,14 @@
-from instruments import showList
-from music import setInstruments,musicEngine,musicGenerator
+from music import musicGenerator,random_note,setInstruments,save_track
+from geneticOperators import tournament_selection,crossover,mutation
 import numpy as np
 import random
 
+np.seterr(all='raise')
 
-def rate_music(instr_array,chromosome):
-    print(instr_array,chromosome)
-    musicGenerator(instr_array, chromosome)
+
+# Function to play and rate tracks
+def rate_music(instr_array,track) -> int:
+    musicGenerator(instr_array, track)
     while True:
         try:
             rate = int(input("Rate the music (0-10): "))
@@ -17,173 +19,118 @@ def rate_music(instr_array,chromosome):
                 break
             else:
                 print("Enter a number between 1 to 10")
-
     return rate
 
 
 # Calculating the fitness of a chromosome
-def c_fitness(instr_array,generation):
-
-    fitness = []
-    fitness.append([rate_music(instr_array,chromosome) for chromosome in generation])
+def fitness(instr_array,generation) -> np.ndarray:
+    fitness = np.full(len(generation),-1)
+    unique = np.unique(generation,return_inverse=True,axis=0)
+    unique_indices = unique[1]
+    for i,chromosome in enumerate(generation):
+        if fitness[i] == -1:
+            fit = rate_music(instr_array,chromosome)
+            fitness[np.where(unique_indices==unique_indices[i])] = fit
+        else:
+            print("Music already rated")
     return fitness
 
 
-# Selection
-def select_parent(generation, fitness_array, selection_size):
-    # Implementing weighted random selection (Individuals with higher fitness has more chance)
-    print(generation.shape, fitness_array.shape)
-    selection = []
-    inverse_fitness = max(fitness_array) - fitness_array
-    probability_distribution = np.array(inverse_fitness / sum(inverse_fitness))
-    selection.append(
-        np.random.choice(
-            generation.shape[0], selection_size, p=probability_distribution
-        )
-    )
-    best_index = np.argmin(fitness_array[tuple(selection)])
-    parent = generation[best_index, :]
-    return parent
 
-
-# Crossover(Single point)
-def crossover(p1, p2):
-
-    point = random.randint(1,len(p1)-1)
-    print(np.vstack((p1,p2)))
-    return np.vstack((p1[:point],p2[point:])), np.vstack((p2[:point],p2[point:]))
-
-# Mutation (Either changes notes or duration)
-def mutate(p):
-    print("mute")
-    index1 = random.randint(0, len(p) - 1)
-    index2 = random.randint(0, len(p) - 1)
-    item = np.random.randint(0, 2) #choosing between note and duration
-    tmp = p[index1,item]
-    p[index1,item] = p[index2,item]
-    p[index2,item] = tmp
-    return p
-
-
-# # Random Extinction
-# def extinction(generation, fitness_array):
-#     selection = []
-#     probability_distribution = np.array(fitness_array / sum(fitness_array))
-#     selection.append(
-#         np.random.choice(
-#             generation.shape[0], random.randint(1, 10), p=probability_distribution
-#         )
-#     )
-#     print(selection)
-#     # Removing selected candidates from both generation and fitness arrays
-#     n_generation = np.delete(generation, selection, axis=0)
-#     n_fitness_array = np.delete(fitness_array, selection)
-#     print(generation.shape, fitness_array.shape)
-#     return n_generation, n_fitness_array
-
-
-# Creating offspring
-def children(c1, c2, crossover_rate, mutation_rate):
-    if crossover_rate > random.random():
-        c1, c2 = crossover(c1, c2)
-    if mutation_rate > random.random():
-        c1 = mutate(c1)
-    if mutation_rate > random.random():
-        c2 = mutate(c2)
-    return c1, c2
 
 
 # Generating new generation
-def next_generation(
-    generation,
-    instr_array,
-    fitness_array,
-    selection_size,
-    crossover_rate,
-    mutation_rate,
-    elite_max,
-    incest_control,
-    extinction_rate,
-):
+def next_generation(generation,fitness_array,selection_size,elite_max,crossover_rate,mutation_rate) -> list:
     next_gen = []
 
-    # # Random extinction
-    # if extinction_rate > random.random():
-    #     generation, fitness_array = extinction(generation, fitness_array)
-
     # Elitism
-    elite = generation[np.argsort(fitness_array)[:elite_max]]
+    elite = [chr for chr,_ in sorted(zip(generation,fitness_array),key= lambda x:x[1],reverse=True)][:elite_max]
     for chromosome in elite:
         next_gen.append(chromosome)
 
+    #selection
     while True:
-        p1 = select_parent(generation, fitness_array, selection_size)
-        p2 = select_parent(generation, fitness_array, selection_size)
+        c1 = tournament_selection(generation, fitness_array,selection_size)
+        c2 = tournament_selection(generation, fitness_array,selection_size)
 
-        # Incest check
-        if incest_control > random.random():
-            while (np.array(p1) != np.array(p2)).all():
-                p2 = select_parent(generation, fitness_array, selection_size)
-        c1, c2 = children(p1, p2, crossover_rate, mutation_rate)
+        #Mutation
+        if mutation_rate[0] > random.random():
+            c1 = mutation(c1, mutation_rate)
+        if mutation_rate[0] > random.random():
+            c2 = mutation(c2, mutation_rate)
+
+        #Crossover
+        if crossover_rate > random.random():
+            count = 0
+
+            #incest check
+            while True:
+                if count == len(generation)-1:
+                    mutation(c1,mutation_rate)
+                    break
+                elif (np.array(c1) == np.array(c2)).all():
+                    c2,count = tournament_selection(generation, fitness_array,selection_size),count+1
+                else:
+                    c1, c2 = crossover(c1, c2)
+                    break
+
         if len(next_gen) < population_size:
             next_gen.append(c1)
         elif len(next_gen) < population_size:
             next_gen.append(c2)
         else:
             break
-        # print(len(next_gen))
+
     return next_gen
 
 
 
-# Defining parameters
-population_size = 4
+# Genetic parameters
+population_size = 6
 generation_max = 10
-selection_size = 4
+selection_size = 2
 crossover_rate = 0.8
-mutation_rate = 0.2
+mutation_rate = [0.6, 0.5, 0.6] #[mutation_rate, swap_mutation, random reset]
 elite_max = 1
-incest_control = 0.5
-extinction_rate = 0.08
 
+# To take input from users
 #instruments = input("{} Select instrument number of your choice from the above list (max 9 instruments):".format(showList()))
 #instr_array = list(map(int,instruments.replace(",",""))) #string to int array
-instr_array = [1,27,41]
-#channel, pitch, time, duration,
-pop_size = 5
-tim = 4
-generation_ = []
+
+#Musical Paremets
+instr_array = [2,27]
+setInstruments(instr_array)
+notePerTrack = 20
+
+
+
 #Population initialization
-for _ in range(pop_size):
+generation_ = []
+for _ in range(population_size):
     chromosome = []
-    for __ in range(tim):
-        channel = np.random.randint(0,len(instr_array)-1)
-        pitch = np.random.randint(36,96)
-        time = np.random.uniform(0.0,15.0)
-        duration = np.random.uniform(0.2,3.0)
-        chromosome.append([channel,pitch,time,duration])
+    for __ in range(notePerTrack):
+        chromosome.append(random_note())
     generation_.append(chromosome)
-# First generation
+
 best_value = []
 avg_value = []
+ind_array = range(0,population_size-1)
 # Searching for solution till generation max is reached
 for i in range(0, generation_max):
-    generation = generation_
-    fitness_array = np.array(c_fitness(instr_array,generation)).reshape(
-        len(generation) * 1
-    )
-    generation_ = next_generation(
-        generation,
-        instr_array,
-        fitness_array,
-        selection_size,
-        crossover_rate,
-        mutation_rate,
-        elite_max,
-        incest_control,
-        extinction_rate,
-    )
-    print(generation.shape,"--------------------")
-    if i % 10 == 0:
-        best_value.append(np.min(fitness_array))
-        avg_value.append(np.average(fitness_array))
+    print(f"-------------Generation: {i}-------------")
+    generation = np.array(generation_)
+    fitness_array = fitness(instr_array,generation)
+    generation_ = next_generation(generation,fitness_array,selection_size,elite_max,crossover_rate,mutation_rate)
+    x = int(input("Enter song number to save, 0 indexing(n for none)"))
+    if x in ind_array:
+        save_track(generation[x],instr_array)
+        print("came")
+
+    best_value.append(np.min(fitness_array))
+    avg_value.append(np.average(fitness_array))
+    print(best_value,avg_value)
+
+#CHANGE THESE names each time code runs for 10 generations
+print("Just copy the above arrays to a file incase if save didn't work")
+np.save("best1",best_value)
+np.save("avg1",avg_value)
