@@ -121,7 +121,7 @@ for i in range(0, generation_max):
     generation = np.array(generation_)
     fitness_array = fitness(instr_array,generation)
     generation_ = next_generation(generation,fitness_array,selection_size,elite_max,crossover_rate,mutation_rate)
-    x = int(input("Enter song number to save, 0 indexing(n for none)"))
+    x = int(input("Enter song number to save, 0 indexing(9 for none)"))
     if x in ind_array:
         save_track(generation[x],instr_array)
         print("came")
