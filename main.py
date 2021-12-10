@@ -126,7 +126,7 @@ for i in range(0, generation_max):
         save_track(generation[x],instr_array)
         print("came")
 
-    best_value.append(np.min(fitness_array))
+    best_value.append(np.max(fitness_array))
     avg_value.append(np.average(fitness_array))
     print(best_value,avg_value)
 
