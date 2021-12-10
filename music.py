@@ -54,7 +54,7 @@ def musicGenerator(*args):
 def random_note() -> list:
     channel = random.randint(0, numInstruments)
     pitch = random.randint(36, 96)
-    time = random.randint(0, 5)
+    time = random.randint(0, 15)
     duration = random.randint(1, 3)
     return [channel,pitch,time,duration]
 
