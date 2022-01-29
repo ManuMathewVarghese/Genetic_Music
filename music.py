@@ -7,9 +7,9 @@ import random
 from datetime import datetime
 time = 0
 volume = 100
-tempo = 120
+tempo = 138
 
-
+# To assign each channel according to instrument.
 def setInstruments(instr_list) -> None:
     '''
     A function to set channels for each instrument
@@ -30,23 +30,30 @@ def musicEngine(args) -> None:
     A function to generate music from given values of pitch, time, duration of the instrument
     Pitch values are taken from "https://www.midi.org/specifications-old/item/gm-level-1-sound-set"
     '''
-    memFile = BytesIO()
+    #memFile = BytesIO()
     for line in args:
         channel = int(line[0])
         pitch = int(line[1])
         time = line[2]
         duration = line[3]
         track.addNote(0, channel, pitch, time, duration, volume)
-    track.writeFile(memFile)
+    # track.writeFile(memFile)
+    with open("track.mid","wb") as outfile:
+        track.writeFile(outfile)
     pygame.init()
     pygame.mixer.init()
-    memFile.seek(0)
-    pygame.mixer.music.load(memFile)
+    #memFile.seek(0)
+    pygame.mixer.music.load("track.mid")
     pygame.mixer.music.play()
     while pygame.mixer.music.get_busy():
         sleep(1)
 
+# Function to generate music
 def musicGenerator(*args):
+    '''
+    Setinstruments will create a track with channels
+    music engine will generate notes
+    '''
     setInstruments(args[0])
     musicEngine(args[1])
 
@@ -54,21 +61,6 @@ def musicGenerator(*args):
 def random_note() -> list:
     channel = random.randint(0, numInstruments)
     pitch = random.randint(36, 96)
-    time = random.randint(0, 15)
-    duration = random.randint(1, 3)
+    time = random.randint(0, 20)
+    duration = random.randint(1, 2)
     return [channel,pitch,time,duration]
-
-#To save best tracks
-def save_track(trck,instr_array):
-    setInstruments(instr_array)
-    for line in trck:
-        channel = int(line[0])
-        pitch = int(line[1])
-        time = line[2]
-        duration = line[3]
-        track.addNote(0, channel, pitch, time, duration, volume)
-    dt = datetime.now()
-    filename = "track" + str(dt.day) + str(dt.hour) + str(dt.minute) + str(dt.second) + ".mid"
-    print(filename,"saved")
-    with open(filename,"wb") as outfile:
-        track.writeFile(outfile)

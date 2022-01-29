@@ -1,5 +1,8 @@
-from music import musicGenerator,random_note,setInstruments,save_track
+#please read readme.md
+
+from music import musicGenerator,random_note,setInstruments
 from geneticOperators import tournament_selection,crossover,mutation
+from instruments import showList
 import numpy as np
 import random
 
@@ -8,6 +11,9 @@ np.seterr(all='raise')
 
 # Function to play and rate tracks
 def rate_music(instr_array,track) -> int:
+    '''
+    Function to take user rating as input
+    '''
     musicGenerator(instr_array, track)
     while True:
         try:
@@ -41,6 +47,13 @@ def fitness(instr_array,generation) -> np.ndarray:
 
 # Generating new generation
 def next_generation(generation,fitness_array,selection_size,elite_max,crossover_rate,mutation_rate) -> list:
+    '''
+    Elitism: Best track from one generation are copied to the next generation.
+    Selection: Tournament selection
+    Incest_check: If all the tracks in a population are similar, randomly selected tracks are forced to mutate.
+    Crossover: Recombination of two tracks
+    Mutation: 1. Swap mutation: Swaps values of notes in a track. 2. Random reset: Varies values in a note randomly.
+    '''
     next_gen = []
 
     # Elitism
@@ -90,17 +103,21 @@ population_size = 6
 generation_max = 10
 selection_size = 2
 crossover_rate = 0.8
-mutation_rate = [0.6, 0.5, 0.6] #[mutation_rate, swap_mutation, random reset]
+mutation_rate = [0.6, 0.5, 0.6] #[mutation_rate, swap rate, reset rate]
 elite_max = 1
 
 # To take input from users
-#instruments = input("{} Select instrument number of your choice from the above list (max 9 instruments):".format(showList()))
+print("{} Select instrument number of your choice from the above list (max 9 instruments):".format(showList()))
+instr_array = []
+for i in range(1,10):
+    instr_array.append(int(input(f'Enter instrument number {i}, (0 to finish):')))
+    if instr_array[-1] == 0: break
 #instr_array = list(map(int,instruments.replace(",",""))) #string to int array
-
-#Musical Paremets
-instr_array = [2,27]
+print(instr_array)
 setInstruments(instr_array)
-notePerTrack = 20
+
+#Music Paremeters
+notesPerTrack = 25
 
 
 
@@ -108,29 +125,21 @@ notePerTrack = 20
 generation_ = []
 for _ in range(population_size):
     chromosome = []
-    for __ in range(notePerTrack):
+    for __ in range(notesPerTrack):
         chromosome.append(random_note())
     generation_.append(chromosome)
 
+
 best_value = []
 avg_value = []
-ind_array = range(0,population_size-1)
+
 # Searching for solution till generation max is reached
 for i in range(0, generation_max):
     print(f"-------------Generation: {i}-------------")
     generation = np.array(generation_)
     fitness_array = fitness(instr_array,generation)
     generation_ = next_generation(generation,fitness_array,selection_size,elite_max,crossover_rate,mutation_rate)
-    x = int(input("Enter song number to save, 0 indexing(9 for none)"))
-    if x in ind_array:
-        save_track(generation[x],instr_array)
-        print("came")
 
-    best_value.append(np.max(fitness_array))
-    avg_value.append(np.average(fitness_array))
-    print(best_value,avg_value)
-
-#CHANGE THESE names each time code runs for 10 generations
-print("Just copy the above arrays to a file incase if save didn't work")
-np.save("best1",best_value)
-np.save("avg1",avg_value)
+    # best_value.append(np.max(fitness_array))
+    # avg_value.append(np.average(fitness_array))
+    # print(best_value,avg_value)
